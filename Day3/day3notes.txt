@@ -1,0 +1,12 @@
+# Day 3 Notes
+
+
+1. Start with slides: communicating an analytics project. Most of this information comes from Storytelling with Data (Nussbaumer Knaflic). A small portion of the data is from Data Science and Big Data Analytics: Discovering, Analyzing, Visualizing, and Presenting Data (digital version available through OU Libraries). 
+
+2. Most of the day is spent with a Python application in Colab. 
+  - Overview of notebook environment and python: introduction.ipynb (GitHub)
+  - Python practice with either Demand_Response.ipynb (probably have to truncate) or with UtilityAnalytics.ipynb.
+
+Note: I typically use the notebook UtilityAnalytics.ipynb notebook. I used the demand response notebook on the last run, and it was probably too much for this audience. Maybe more appropriate for the Applied Machine Learning audience.
+
+Files are available at GitHub. 
