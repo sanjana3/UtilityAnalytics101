@@ -1,0 +1,473 @@
+
+Using the SELECT statement
+1.	SELECT all columns
+2.	SELECT specific columns
+3.	Calculating expressions
+4.	Concatenating columns
+
+Select all columns from market_energy_price; limit the number of columns returned
+
+SELECT * FROM market_energy_price LIMIT 10;
+
+
+Select operation_date, toutype, price columns from that same table
+
+SELECT operation_date, toutype, price
+FROM market_energy_price 
+LIMIT 10;
+
+
+Calculating expressions
+SELECT 7 * 3;
+
+Change interval_interval beginning (return both)
+
+SELECT
+    interval_ending,
+    interval_ending - 15 AS interval_beginning -- notice using the alias: AS
+FROM market_energy_price;
+
+
+Concatenating operation_date, hour_ending, and interval_ending AS timestamp 
+
+SELECT operation_date || ' ' || hour_ending || ' ' || interval_ending AS timestamp, price
+FROM market_energy_price;
+
+
+CONCAT() is not supported in SQLite but may be in your implementation
+
+SELECT CONCAT(operation_date, hour_ending, interval_ending) AS timestamp, price
+FROM market_energy_price;
+
+ 
+
+Using WHERE, AND/OR/IN, and handling NULL
+
+WHERE with numbers; 
+-- select all columns from market_energy_price where the price is greater than 50
+
+SELECT * 
+FROM market_energy_price
+WHERE price > 50;
+
+
+WHERE with text
+-- select all columns from market_energy_price where the type of usage is "off-peak"
+
+SELECT *
+FROM market_energy_price 
+WHERE toutype = 'OFF-PEAK';
+
+
+AND, OR, and IN statements
+-- Now suppose we wanted to combine the two previous conditions...price > 50, type of usage equal to "off-peak"
+
+SELECT * 
+FROM market_energy_price
+WHERE price > 50
+AND toutype = 'OFF-PEAK';
+
+
+WHERE with text
+-- If we have a list of values that we want to match, we can do so with the IN
+-- Let's look at records that match some specific report codes (in station_data)
+
+SELECT * FROM station_data
+WHERE report_code IN ('513A63', '1F8A7B', 'EF616A');
+
+
+LIKE
+-- Let's return all rows where the report code starts with "A"
+
+SELECT * FROM station_data
+WHERE report_code LIKE 'A%';
+
+
+
+-- What if we want to see records where the report code starts and ends with "A"
+
+SELECT * FROM station_data
+WHERE report_code LIKE 'A%A';
+
+
+WHERE with Booleans
+-- Select all records from station_data where both a tornado and hail were recorded...
+SELECT * 
+FROM station_data
+WHERE tornado = true 
+AND hail = true;
+
+
+-- Alternatively, we can substitute 1 for "true"
+
+SELECT * 
+FROM station_data
+WHERE tornado = 1 
+AND hail = 1;
+
+
+-- We can shorten the syntax further with Booleans even further by omitting the equality operator...
+
+SELECT * 
+FROM station_data
+WHERE tornado 
+AND hail;
+
+
+Grouping Conditions
+-- When we have more than two conditions in a WHERE clause, it can be difficult to know which expressions go together...best practice says to add parentheses to explicitly group conditions.
+
+SELECT  * 
+FROM STATION_DATA -- From weather_stations
+WHERE (rain = 1 AND temperature < 32) OR snow_depth > 0;
+
+
+
+
+
+
+Handling NULL
+-- Write a query that returns records with no value recorded in the snow depth column.
+
+SELECT * 
+FROM station_data
+WHERE snow_depth = NULL; -- DOES NOT WORK
+
+-- The correct syntax is the use IS NULL and IS NOT NULL
+
+SELECT * 
+FROM station_data
+WHERE snow_depth IS NULL;
+
+
+What if we want to include records where NULL exists in a column with some other condition?
+-- Let's look at records with precipitation less than equal to 0.5 or NULL.
+
+SELECT * 
+FROM station_data
+WHERE precipitation IS NULL 
+OR precipitation <= 0.5;
+
+
+COALESCE
+-- COALESCE: returns the first non-null value in a list; code null values with a default
+
+SELECT * 
+FROM station_data
+WHERE coalesce(precipitation, 0) <= 0.5;
+
+
+Dates and Times
+-- Dates and times are kind of tricky to discuss in detail because of the variation in implementation (SQL dialect)...
+-- Recall that we can manipulate dates with the DATE() and TIME() functions
+-- Let's add a minute to some given time
+
+SELECT TIME('16:00', '+1 minute');
+
+
+
+
+
+
+Back to usage data
+-- Return the interval time yesterday's time stamp with the usage value...
+
+SELECT u_id, 
+       local_interval_time,
+       DATETIME(local_interval_time, '-1 day') as yesterday,
+       value 
+FROM usage_mar;
+
+-- Another example: subtract a day and add 15 minutes
+
+SELECT u_id, 
+       local_interval_time,
+       DATETIME(local_interval_time, '-1 day', '+15 minutes') as new_time,
+       value 
+FROM usage_mar;
+ 
+Grouping and Aggregating
+1.	COUNT(*)
+2.	ORDER BY / DESC
+3.	COUNT(col)
+4.	COUNT DISTINCT
+5.	SUM(), MIN(), MAX(), AVG()
+6.	HAVING
+
+
+COUNT(*)
+-- Write a query to return a count of all records in the table.
+
+SELECT COUNT(*) -- includes NULLs
+FROM station_data;
+
+
+-- Write a query to find out how many records exist where snow depth is greater than 0?
+
+SELECT COUNT(*) -- includes NULLs
+FROM station_data
+WHERE coalesce(snow_depth, 0) > 0;
+
+
+-- Let's get a count of the number of records by usage type (toutype).
+
+SELECT toutype, COUNT(*) AS record_count
+FROM market_energy_price
+GROUP BY toutype;
+
+
+-- With SQLite and some other implementations (not all, e.g. MySQL), you can group with the ordinal position.
+
+SELECT toutype, COUNT(*) AS record_count
+FROM market_energy_price
+GROUP BY 1; 
+
+-- Use the ordinal position instead of specifying the columns by name; not available in every SQL implementation
+
+
+
+
+
+Ordering records
+-- Lets order our result from the previous query.
+SELECT toutype, COUNT(*) AS record_count
+FROM market_energy_price
+GROUP BY 1
+ORDER BY record_count; -- add the DESC keyword to sort in reverse order
+
+
+-- Another example with STATION_DATA
+-- Return a count of records by year and month...
+-- We'll order by year DESC and month by default...
+
+SELECT year, month, COUNT(*) AS record_count 
+FROM station_data
+WHERE tornado = 1
+GROUP BY year, month
+ORDER BY year DESC, month;
+
+
+COUNT(col): non-null count (How many NULL values exist in the station_pressure column)?
+
+SELECT COUNT(*), COUNT(station_pressure), COUNT(*) - COUNT(station_pressure) 
+FROM station_data;
+
+
+COUNT DISTINCT values in the DAY column (how many unique values are there in this column?)
+
+SELECT COUNT(DISTINCT DAY) 
+FROM STATION_DATA;
+
+
+Another example from the cps_energy database
+
+SELECT COUNT(DISTINCT toutype)
+FROM market_energy_price;
+
+
+-- Similarly, to see the unique values themselves, exclude the COUNT function...
+
+SELECT DISTINCT toutype
+FROM market_energy_price;
+
+
+
+Aggregate functions: MIN(), MAX(), SUM(), AVG()
+-- Let's return the average price by usage type
+
+SELECT toutype, AVG(price) AS avg_price
+FROM market_energy_price
+GROUP BY toutype;
+
+
+Round a price
+-- We can round that value with the ROUND function...
+
+SELECT toutype, round(AVG(price), 2) AS avg_price
+FROM market_energy_price
+GROUP BY toutype;
+
+
+HAVING
+-- Now we might want to filter the results of an aggregation...we can do so with the HAVING clause
+-- Let's see usage type where the average price is greater than 20...
+
+SELECT toutype, round(AVG(price), 2) AS avg_price
+FROM market_energy_price
+GROUP BY toutype
+HAVING avg_price > 20;
+
+
+Additional examples of aggregate functions with STATION_DATA
+-- If you wanted to find the average temperature for each month since 2000
+
+SELECT month, AVG(temperature) as avg_temp
+FROM station_data
+WHERE year >= 2000
+GROUP BY month;
+
+
+-- If you wanted the total precipitation by year only when a tornado was present
+SELECT year,
+       SUM(precipitation) as tornado_precipitation
+FROM station_data
+WHERE tornado = 1
+GROUP BY year;
+ 
+The CASE statement
+1.	CASE statement
+2.	CASE expressions with GROUP BY
+3.	Zero/NULL CASE trick
+
+
+-- Recall: A CASE statement allows us to map one or more conditions to a corresponding value for each condition.
+-- For example, we could categorize wind_speed into wind_severity categories 
+--     where any speed greater than 40 is 'HIGH', 30 to 40 is 'MODERATE', and anything less is 'LOW'
+
+SELECT wind_speed,
+       CASE
+           WHEN wind_speed >= 40 THEN 'HIGH'
+           WHEN wind_speed >= 30 THEN 'MODERATE'
+           ELSE 'LOW'
+       END as wind_severity
+FROM station_data
+WHERE wind_severity = 'HIGH';
+
+
+-- If we want to get a grouped count of categorized records, we can do that. Here let's us CASE to classify winds speeds, then get a count by year and category...
+
+SELECT year,
+       CASE
+           WHEN wind_speed >= 40 THEN 'HIGH'
+           WHEN wind_speed >= 30 THEN 'MODERATE'
+           ELSE 'LOW'
+       END as wind_severity,
+       COUNT(*) as record_count
+FROM station_data
+GROUP BY 1, 2;
+
+
+
+
+
+
+
+
+
+
+The "Zero/NULL" CASE trick
+-- This allows you to apply different “filters” for different aggregate values, all in a single SELECT query.
+-- Say you wanted to aggregate precipitation into two sums, tornado_precipitation and non_tornado_precipitation, and GROUP BY year and month. So here we want to return a sum of all tornado precipitation and all non-tornado precip, grouped by year and month. How?
+
+SELECT year, 
+       month,
+       SUM(CASE WHEN tornado = 1 THEN precipitation ELSE 0 END) as tornado_precipitation,
+       SUM(CASE WHEN tornado = 0 THEN precipitation ELSE 0 END) as non_tornado_precipitation
+FROM station_data
+GROUP BY year, month;
+
+
+--  find the average temperatures by month when rain/hail was present versus not present after the year 2000
+SELECT month,
+       AVG(CASE WHEN rain OR hail THEN temperature ELSE null END) AS avg_precipitation_temp,
+       AVG(CASE WHEN NOT (rain OR hail) THEN temperature ELSE null END) AS avg_non_precipitation_temp
+FROM STATION_DATA
+WHERE year > 2000
+GROUP BY month;
+ 
+JOIN
+1.	Left join
+2.	Inner join
+
+
+JOIN
+-- Use a LEFT JOIN to merge data from two tables
+-- Let's say we need to access usage data by meter __including__  meter location...
+SELECT l.u_id uid,
+       latitude lat,
+       longitude long,
+       local_interval_time interval,
+       value
+FROM location l
+LEFT JOIN usage_mar u 
+ON l.u_id = u.u_id;
+
+
+-- Notice that using the LEFT JOIN returns some records with no/NULL values...
+-- Use an INNER Join to return rows where records exist in both tables
+
+SELECT l.u_id uid,
+       latitude lat,
+       longitude long,
+       local_interval_time interval,
+       value
+FROM location l
+INNER JOIN usage_mar u 
+ON l.u_id = u.u_id;
+ 
+CREATE TABLE and CREATE VIEW
+
+
+CREATE TABLE
+-- Create a table to import data from CSV
+
+CREATE TABLE IF NOT EXISTS market_energy_price (
+    price_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    operation_date  DATE    NOT NULL,
+    hour_ending     TEXT    NOT NULL,
+    interval_ending TEXT    NOT NULL,
+    toutype         TEXT,
+    market          TEXT,
+    zone            TEXT    DEFAULT 'Load Zone CPS',
+    price           NUMERIC DEFAULT 0
+);
+
+CREATE VIEW
+
+CREATE VIEW my_view AS
+SELECT l.u_id uid,
+       latitude lat,
+       longitude long,
+       local_interval_time interval,
+       value
+FROM location l
+INNER JOIN usage_mar u 
+ON l.u_id = u.u_id;
+
+
+SELECT * FROM my_view; -- Query from it just like you would from a base table.
+ 
+Subqueries and CTEs
+
+-- Using subqueries within a SELECT statement
+-- We can use scaler subqueries to return a single value
+-- For example, to get records where prices are greater than the average price
+
+SELECT operation_date, hour_ending, interval_ending, price
+FROM market_energy_price
+WHERE price > (SELECT AVG(price) FROM market_energy_price);
+
+
+
+-- See the difference in interval price from the average price
+SELECT price_id,
+       price,
+       (SELECT AVG(price) daily_avg_price FROM market_energy_price GROUP BY operation_date) daily_avg,
+       price - (SELECT AVG(price) daily_avg_price FROM market_energy_price GROUP BY operation_date) price_error
+FROM market_energy_price;
+
+
+Common Table Expressions (CTEs)
+-- Find the meter with the highest usage in March. One approach is to use a CTE:
+	
+WITH summed_usage (id, usage) AS
+  (SELECT u_id, sum(value)
+   FROM usage_mar
+   GROUP BY u_id)
+SELECT id, max(usage)
+FROM summed_usage;
+
+
+
+
+
